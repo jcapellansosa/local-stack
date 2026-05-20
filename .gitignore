@@ -1,0 +1,23 @@
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/*.tfvars
+!**/*.example.tfvars
+
+# Node / build artifacts
+node_modules/
+dist/
+build/
+
+# Go
+*.test
+*.out
+/src/*/bin/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp

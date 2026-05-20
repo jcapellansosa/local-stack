@@ -1,0 +1,3 @@
+repo_url        = "https://github.com/YOUR-USERNAME/local-stack.git"
+target_revision = "main"
+kube_context    = "local-stack"
