@@ -6,13 +6,12 @@ A minikube-hosted demo of a modern, GitOps-driven cloud-native platform: **Argo 
 
 - Docker
 - minikube (>= 1.38)
-- kubectl, helm
-- terraform (>= 1.6)
-- A git repo you can push this directory to (GitHub, GitLab, etc.) — Argo CD pulls manifests from it.
+- kubectl, helm, make
+- A git repo you can push this directory to (GitHub/GitLab/etc.) — Argo CD pulls manifests from it.
 
 ## Bootstrap
 
-1. **Start the cluster** (you control this — Terraform doesn't):
+1. **Start the cluster** (you control this — automation doesn't touch the cluster lifecycle):
 
    ```bash
    minikube start \
@@ -24,48 +23,46 @@ A minikube-hosted demo of a modern, GitOps-driven cloud-native platform: **Argo 
 
 2. **Push this repo somewhere Argo can read it** (GitHub/GitLab/etc.).
 
-3. **Configure Terraform** with your repo URL:
+3. **Install Argo CD + the root App-of-Apps**:
 
    ```bash
-   cd bootstrap
-   cp terraform.tfvars.example terraform.tfvars
-   $EDITOR terraform.tfvars   # set repo_url
+   make up REPO_URL=https://github.com/you/local-stack.git
    ```
 
-4. **Apply**:
+   Two `helm upgrade --install` calls behind the scenes (`argo-cd` chart, then `argocd-apps` chart for the root App). Both wrapped in a retry loop because GitHub Pages can be flaky from some networks.
+
+4. **Open the Argo UI**:
 
    ```bash
-   terraform init
-   terraform apply
+   make port-forward            # in one shell
+   make password                # in another, copy the output
+   # browse http://localhost:8080  (user: admin)
    ```
 
-   This installs Argo CD and applies the root App-of-Apps. After it exits, Argo owns the cluster.
+The root App points at `bootstrap/root/`. It'll be Synced with 0 resources until Phase 2 fills that directory.
 
-5. **Open the Argo UI**:
+## Other Make targets
 
-   ```bash
-   kubectl port-forward -n argocd svc/argo-cd-argocd-server 8080:80
-   # http://localhost:8080  (user: admin)
-   terraform -chdir=bootstrap output -raw argocd_admin_password
-   ```
+```bash
+make status         # helm releases + Argo Applications
+make down           # uninstall both helm releases (cluster stays up)
+make help           # list everything
+```
+
+`minikube delete -p local-stack` is yours to run when you want a fully clean slate.
 
 ## Layout
 
 ```text
-bootstrap/   Terraform: installs Argo CD + applies root App-of-Apps
-  root/      Child Applications discovered by the root App (Phase 2+)
-platform/    Argo Applications for Istio, Keycloak, Tekton, Postgres
-apps/        Argo Application + manifests for the sample app (taskboard)
-pipelines/   Tekton tasks + pipeline definitions
-src/         Sample app source (Go + React)
+Makefile           Bootstrap entry point (helm + kubectl)
+bootstrap/
+  values/          Helm values files (argocd.yaml, root-app.yaml)
+  root/            Child Applications discovered by the root App (Phase 2+)
+platform/          Argo Applications for Istio, Keycloak, Tekton, Postgres
+apps/              Argo Application + manifests for the sample app (taskboard)
+pipelines/         Tekton tasks + pipeline definitions
+src/               Sample app source (Go + React)
 ```
 
-Once the platform Applications are in place, the demo flow is:
+The end-to-end demo flow once everything is in place:
 **code change → Tekton pipeline builds & pushes image → Argo detects manifest change → redeploys behind Istio gateway with mTLS, fronted by Keycloak SSO.**
-
-## Tear down
-
-```bash
-terraform -chdir=bootstrap destroy   # removes Argo + everything Argo manages
-minikube delete -p local-stack       # nukes the cluster (your call)
-```
