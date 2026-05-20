@@ -66,8 +66,8 @@ root-app: check-repo-url
 	  --namespace $(NAMESPACE) \
 	  --version $(ARGOCD_APPS_VERSION) \
 	  --values bootstrap/values/root-app.yaml \
-	  --set "applications[0].source.repoURL=$(REPO_URL)" \
-	  --set "applications[0].source.targetRevision=$(TARGET_REVISION)" \
+	  --set "applications.root.source.repoURL=$(REPO_URL)" \
+	  --set "applications.root.source.targetRevision=$(TARGET_REVISION)" \
 	  --wait)
 
 check-repo-url:

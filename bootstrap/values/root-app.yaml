@@ -1,5 +1,5 @@
 applications:
-  - name: root
+  root:
     namespace: argocd
     finalizers:
       - resources-finalizer.argocd.argoproj.io
