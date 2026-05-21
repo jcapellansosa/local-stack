@@ -36,6 +36,13 @@ spec:
       jqPathExpressions:
         - .webhooks[].clientConfig.caBundle
         - .webhooks[].failurePolicy
+    # API server strips `preserveUnknownFields: false` on v1 CRDs (it's the
+    # default). The release.yaml sets it explicitly, so without this every
+    # operator CRD shows perpetual drift.
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jsonPointers:
+        - /spec/preserveUnknownFields
   syncPolicy:
     automated:
       prune: true
