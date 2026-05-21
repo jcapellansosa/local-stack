@@ -5,7 +5,7 @@ applications:
       - resources-finalizer.argocd.argoproj.io
     project: default
     source:
-      # repoURL and targetRevision are injected by the Makefile via --set
+      # repoURL and targetRevision are injected via `helm --set` at install time
       path: bootstrap/root
       directory:
         recurse: true

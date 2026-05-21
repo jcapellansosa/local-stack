@@ -6,47 +6,90 @@ A minikube-hosted demo of a modern, GitOps-driven cloud-native platform: **Argo 
 
 - Docker
 - minikube (>= 1.38)
-- kubectl, helm, make
+- kubectl, helm
 - A git repo you can push this directory to (GitHub/GitLab/etc.) — Argo CD pulls manifests from it.
 
 ## Bootstrap
 
-1. **Start the cluster** (you control this — automation doesn't touch the cluster lifecycle):
+Every step is a command you run yourself. Nothing is hidden in a script.
 
-   ```bash
-   minikube start \
-     --profile=local-stack \
-     --cpus=3 --memory=5500m \
-     --driver=docker \
-     --addons=metrics-server,registry
-   ```
+### 1. Start the cluster
 
-2. **Push this repo somewhere Argo can read it** (GitHub/GitLab/etc.).
-
-3. **Install Argo CD + the root App-of-Apps**:
-
-   ```bash
-   make up REPO_URL=https://github.com/you/local-stack.git
-   ```
-
-   Two `helm upgrade --install` calls behind the scenes (`argo-cd` chart, then `argocd-apps` chart for the root App). Both wrapped in a retry loop because GitHub Pages can be flaky from some networks.
-
-4. **Open the Argo UI**:
-
-   ```bash
-   make port-forward            # in one shell
-   make password                # in another, copy the output
-   # browse http://localhost:8080  (user: admin)
-   ```
-
-The root App points at `bootstrap/root/`. It'll be Synced with 0 resources until Phase 2 fills that directory.
-
-## Other Make targets
+You control the cluster lifecycle. Automation only touches what runs *inside* it.
 
 ```bash
-make status         # helm releases + Argo Applications
-make down           # uninstall both helm releases (cluster stays up)
-make help           # list everything
+minikube start \
+  --profile=local-stack \
+  --cpus=3 --memory=5500m \
+  --driver=docker \
+  --addons=metrics-server,registry
+```
+
+### 2. Push this repo somewhere Argo CD can read it
+
+GitHub, GitLab, or any HTTPS git URL. Note the URL — you'll pass it in step 4.
+
+### 3. Install Argo CD
+
+Adds the Argo Helm repo, then installs the `argo-cd` chart into the `argocd` namespace using the values file at [bootstrap/values/argocd.yaml](bootstrap/values/argocd.yaml). `--wait` blocks until pods are ready.
+
+```bash
+helm --kube-context local-stack repo add argo https://argoproj.github.io/argo-helm
+helm --kube-context local-stack repo update argo
+
+kubectl --context local-stack get ns argocd >/dev/null 2>&1 \
+  || kubectl --context local-stack create namespace argocd
+
+helm --kube-context local-stack upgrade --install argo-cd argo/argo-cd \
+  --namespace argocd \
+  --version 9.5.14 \
+  --values bootstrap/values/argocd.yaml \
+  --wait --timeout 10m
+```
+
+If the helm download fails with `connection reset` (the Argo Helm repo is sometimes flaky), just re-run the `helm upgrade --install` command. It's idempotent.
+
+### 4. Install the root App-of-Apps
+
+Installs the `argocd-apps` chart with one Argo `Application` that points back at this repo's [bootstrap/root/](bootstrap/root/) directory. From this point on, Argo CD reconciles everything else from Git.
+
+Replace `https://github.com/you/local-stack.git` with your repo URL from step 2.
+
+```bash
+helm --kube-context local-stack upgrade --install root-app argo/argocd-apps \
+  --namespace argocd \
+  --version 2.0.5 \
+  --values bootstrap/values/root-app.yaml \
+  --set applications.root.source.repoURL=https://github.com/you/local-stack.git \
+  --set applications.root.source.targetRevision=main \
+  --wait
+```
+
+### 5. Open the Argo CD UI
+
+```bash
+# in one shell — port-forward the Argo server
+kubectl --context local-stack port-forward -n argocd svc/argo-cd-argocd-server 8080:80
+
+# in another shell — print the admin password
+kubectl --context local-stack -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 -d; echo
+```
+
+Browse to <http://localhost:8080> and log in as `admin` with the password from above.
+
+The root App points at `bootstrap/root/`. Until Phase 2 fills that directory, it'll be Synced with 0 resources — that's expected.
+
+## Useful commands
+
+```bash
+# list helm releases + all Argo Applications
+helm --kube-context local-stack list -n argocd
+kubectl --context local-stack get applications.argoproj.io -n argocd
+
+# uninstall the bootstrap (cluster stays up; Argo cleans up child apps via finalizers)
+helm --kube-context local-stack uninstall root-app -n argocd
+helm --kube-context local-stack uninstall argo-cd  -n argocd
 ```
 
 `minikube delete -p local-stack` is yours to run when you want a fully clean slate.
@@ -54,7 +97,6 @@ make help           # list everything
 ## Layout
 
 ```text
-Makefile           Bootstrap entry point (helm + kubectl)
 bootstrap/
   values/          Helm values files (argocd.yaml, root-app.yaml)
   root/            Child Applications discovered by the root App (Phase 2+)
