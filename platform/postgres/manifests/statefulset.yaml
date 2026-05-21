@@ -48,7 +48,11 @@ spec:
             - name: data
               mountPath: /var/lib/postgresql/data
   volumeClaimTemplates:
-    - metadata:
+    # apiVersion + kind are server-defaulted after creation; declaring them here
+    # keeps ServerSideApply from reporting drift on every reconcile.
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
