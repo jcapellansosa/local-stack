@@ -18,8 +18,6 @@ spec:
     # remotely at sync time because Argo's TLS-trust mechanism only covers
     # helm and git fetches, not arbitrary HTTP downloads.
     path: platform/tekton-operator/manifests
-    directory:
-      recurse: false
   destination:
     server: https://kubernetes.default.svc
     # The operator release.yaml hard-codes namespace `tekton-operator`.
