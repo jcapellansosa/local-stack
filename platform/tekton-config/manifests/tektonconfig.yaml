@@ -1,0 +1,22 @@
+apiVersion: operator.tekton.dev/v1alpha1
+kind: TektonConfig
+metadata:
+  # The operator only recognizes the singleton named `config`.
+  name: config
+spec:
+  # `all` installs Pipelines + Triggers + Dashboard + Chains + Hub.
+  # Chains gives us in-cluster supply-chain attestations (a strong gov
+  # story); Hub gives the catalog UI. ~1.1 GiB of pods at steady state.
+  profile: all
+  # Where the actual Tekton components (controller, webhook, dashboard, etc.)
+  # get installed. `tekton-pipelines` is the operator's default and matches
+  # what the rest of the catalog/community docs assume.
+  targetNamespace: tekton-pipelines
+  pruner:
+    # Auto-clean old PipelineRuns/TaskRuns so the demo cluster doesn't fill
+    # up etcd. Keep last 100, prune daily at 08:00.
+    resources:
+      - pipelinerun
+      - taskrun
+    keep: 100
+    schedule: "0 8 * * *"

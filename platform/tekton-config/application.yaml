@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tekton-config
+  namespace: argocd
+  annotations:
+    # Wave 3 — after the operator (wave 1) has its CRDs and webhooks ready.
+    # The TektonConfig CR is the umbrella that tells the operator which
+    # Tekton components to install (Pipelines, Triggers, Dashboard, Chains,
+    # Hub).
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jcapellansosa/local-stack.git
+    targetRevision: main
+    path: platform/tekton-config/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    # TektonConfig is a cluster-scoped CR; namespace here is just where the
+    # object is recorded by Argo for bookkeeping.
+    namespace: tekton-operator
+  # The operator mutates the TektonConfig's .status and may patch .spec with
+  # defaults. Ignore status entirely and tolerate spec defaulting.
+  ignoreDifferences:
+    - group: operator.tekton.dev
+      kind: TektonConfig
+      jsonPointers:
+        - /status
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      # First sync usually races the operator webhook coming up.
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

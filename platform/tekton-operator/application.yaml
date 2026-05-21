@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tekton-operator
+  namespace: argocd
+  annotations:
+    # Wave 1 — operator + its CRDs must exist before any TektonConfig CR
+    # (wave 3) tries to declare what to install.
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jcapellansosa/local-stack.git
+    targetRevision: main
+    # release.yaml is vendored into the repo (see README). We don't fetch it
+    # remotely at sync time because Argo's TLS-trust mechanism only covers
+    # helm and git fetches, not arbitrary HTTP downloads.
+    path: platform/tekton-operator/manifests
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    # The operator release.yaml hard-codes namespace `tekton-operator`.
+    namespace: tekton-operator
+  # The operator's release.yaml mutates its own webhook caBundle and a few
+  # other fields after install. Without these, Argo will loop trying to
+  # un-mutate them.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+        - .webhooks[].failurePolicy
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+        - .webhooks[].failurePolicy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
