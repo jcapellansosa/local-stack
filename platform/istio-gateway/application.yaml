@@ -44,6 +44,12 @@ spec:
     server: https://kubernetes.default.svc
     namespace: istio-ingress
   syncPolicy:
+    # The gateway chart ships image: "auto" — istiod rewrites it to the real
+    # proxy image via mutating webhook, which only fires in namespaces labeled
+    # istio-injection=enabled. managedNamespaceMetadata lets Argo own that label.
+    managedNamespaceMetadata:
+      labels:
+        istio-injection: enabled
     automated:
       prune: true
       selfHeal: true

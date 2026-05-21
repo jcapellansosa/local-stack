@@ -38,6 +38,19 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: istio-system
+  # istiod patches its own webhook caBundle + failurePolicy after startup.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: istio-validator-istio-system
+      jsonPointers:
+        - /webhooks/0/failurePolicy
+        - /webhooks/0/clientConfig/caBundle
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: istio-sidecar-injector
+      jqPathExpressions:
+        - '.webhooks[].clientConfig.caBundle'
   syncPolicy:
     automated:
       prune: true

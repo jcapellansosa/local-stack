@@ -18,6 +18,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: istio-system
+  # istiod mutates these webhook fields at runtime after we apply the chart;
+  # without ignoreDifferences Argo+self-heal would fight istiod in an infinite loop.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: istiod-default-validator
+      jsonPointers:
+        - /webhooks/0/failurePolicy
+        - /webhooks/0/clientConfig/caBundle
   syncPolicy:
     automated:
       prune: true
