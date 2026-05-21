@@ -65,3 +65,7 @@ data:
     fi
 
     echo "Seed complete."
+
+    # Job pods stay Running because the Istio sidecar never exits on its own.
+    # Tell pilot-agent on localhost:15020 to shut down so the Pod completes.
+    curl -fsS -X POST http://localhost:15020/quitquitquit >/dev/null 2>&1 || true
