@@ -49,6 +49,8 @@ helm --kube-context local-stack upgrade --install argo-cd argo/argo-cd \
 
 If the helm download fails with `connection reset` (the Argo Helm repo is sometimes flaky), just re-run the `helm upgrade --install` command. It's idempotent.
 
+**Behind a TLS-intercepting proxy?** If Argo's repo-server later errors with `x509: certificate signed by unknown authority` when fetching from a chart/git host, your network is presenting MITM'd certs and Argo doesn't trust your corporate CA. Copy [bootstrap/values/argocd-tls.local.yaml.example](bootstrap/values/argocd-tls.local.yaml.example) (if present) — or create `bootstrap/values/argocd-tls.local.yaml` (gitignored) — listing each intercepted hostname with your CA's PEM, then add `--values bootstrap/values/argocd-tls.local.yaml` to the `helm upgrade` above and re-run it. Add a new entry to that file every time you encounter the error from a new hostname.
+
 ### 4. Install the root App-of-Apps
 
 Installs the `argocd-apps` chart with one Argo `Application` that points back at this repo's [bootstrap/root/](bootstrap/root/) directory. From this point on, Argo CD reconciles everything else from Git.

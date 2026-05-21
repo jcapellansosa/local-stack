@@ -21,3 +21,6 @@ build/
 .idea/
 .DS_Store
 *.swp
+
+# Local-only overrides (e.g. corporate CA bundles for TLS-intercepting networks)
+bootstrap/values/*.local.yaml
