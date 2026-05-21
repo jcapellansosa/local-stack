@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Argo PostSync hook — re-runs every sync. BeforeHookCreation deletes the
+  # previous Job before launching a new one, so the script always runs
+  # against current Keycloak state (and picks up any script edits).
+  name: keycloak-seed
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 20
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: seed
+          # Same image as the Keycloak server so kcadm.sh ships with it.
+          image: quay.io/keycloak/keycloak:25.0
+          command: ["/bin/bash", "/scripts/seed.sh"]
+          env:
+            - name: KEYCLOAK_URL
+              value: http://keycloak
+            - name: KEYCLOAK_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak
+                  key: KEYCLOAK_ADMIN
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak
+                  key: KEYCLOAK_ADMIN_PASSWORD
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: keycloak-seed-script
+            defaultMode: 0o755

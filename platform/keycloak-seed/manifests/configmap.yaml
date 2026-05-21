@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-seed-script
+data:
+  seed.sh: |
+    #!/usr/bin/env bash
+    # Seeds the `taskboard` realm + OIDC client + demo user in Keycloak.
+    # Idempotent: re-running is safe — every create is guarded by a get.
+    set -euo pipefail
+
+    KCADM=/opt/keycloak/bin/kcadm.sh
+    SERVER="${KEYCLOAK_URL:-http://keycloak}"
+    REALM=taskboard
+    CLIENT_ID=taskboard
+    DEMO_USER=demo
+    DEMO_PASS=demo
+
+    echo "Waiting for Keycloak at ${SERVER} ..."
+    until curl -fsS "${SERVER}/realms/master" >/dev/null 2>&1; do
+      sleep 5
+    done
+
+    echo "Authenticating as ${KEYCLOAK_ADMIN} ..."
+    "$KCADM" config credentials \
+      --server "${SERVER}" \
+      --realm master \
+      --user "${KEYCLOAK_ADMIN}" \
+      --password "${KEYCLOAK_ADMIN_PASSWORD}"
+
+    echo "Ensuring realm '${REALM}' ..."
+    if ! "$KCADM" get "realms/${REALM}" >/dev/null 2>&1; then
+      "$KCADM" create realms -s "realm=${REALM}" -s enabled=true
+    fi
+
+    echo "Ensuring client '${CLIENT_ID}' ..."
+    CLIENT_UUID=$("$KCADM" get clients -r "${REALM}" -q "clientId=${CLIENT_ID}" \
+      --fields id --format csv --noquotes 2>/dev/null | tail -n +2 || true)
+    if [ -z "${CLIENT_UUID}" ]; then
+      # Public client + PKCE: the SPA holds no secret; Istio
+      # RequestAuthentication will validate the resulting JWT at the mesh edge.
+      "$KCADM" create clients -r "${REALM}" \
+        -s "clientId=${CLIENT_ID}" \
+        -s enabled=true \
+        -s publicClient=true \
+        -s standardFlowEnabled=true \
+        -s directAccessGrantsEnabled=false \
+        -s 'redirectUris=["http://taskboard.local/*","https://taskboard.local/*"]' \
+        -s 'webOrigins=["+"]' \
+        -s 'attributes."pkce.code.challenge.method"=S256'
+    fi
+
+    echo "Ensuring user '${DEMO_USER}' ..."
+    USER_ID=$("$KCADM" get users -r "${REALM}" -q "username=${DEMO_USER}" \
+      --fields id --format csv --noquotes 2>/dev/null | tail -n +2 || true)
+    if [ -z "${USER_ID}" ]; then
+      "$KCADM" create users -r "${REALM}" \
+        -s "username=${DEMO_USER}" \
+        -s enabled=true \
+        -s firstName=Demo \
+        -s lastName=User \
+        -s email=demo@example.com \
+        -s emailVerified=true
+      "$KCADM" set-password -r "${REALM}" --username "${DEMO_USER}" --new-password "${DEMO_PASS}"
+    fi
+
+    echo "Seed complete."

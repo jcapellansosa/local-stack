@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak-seed
+  namespace: argocd
+  annotations:
+    # Wave 3 — after keycloak (wave 2) is reconciled. The Job itself re-tries
+    # until Keycloak's HTTP listener answers, so we don't need a strict
+    # ordering on pod readiness — just on the Application order.
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jcapellansosa/local-stack.git
+    targetRevision: main
+    path: platform/keycloak-seed/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keycloak
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m
