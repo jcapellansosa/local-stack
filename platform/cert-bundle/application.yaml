@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-bundle
+  namespace: argocd
+  annotations:
+    # Wave 1 — after Reflector (wave 0), before workloads (wave 2+).
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jcapellansosa/local-stack.git
+    targetRevision: main
+    path: platform/cert-bundle/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-bundle
+  # The source ConfigMap's .data is populated out-of-band by `kubectl patch`
+  # (see README) so the corporate CA never enters this public repo. Argo
+  # manages the object's identity, annotations, and labels; the user owns the
+  # cert payload. ignoreDifferences keeps self-heal from wiping it.
+  ignoreDifferences:
+    - kind: ConfigMap
+      name: corporate-ca
+      namespace: cert-bundle
+      jsonPointers:
+        - /data
+        - /binaryData
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

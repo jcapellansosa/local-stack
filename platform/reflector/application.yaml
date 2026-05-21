@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reflector
+  namespace: argocd
+  annotations:
+    # Wave 0 — Reflector must exist before cert-bundle declares the source
+    # ConfigMap (wave 1) and before any workload tries to mount the replicated
+    # copy in its own namespace.
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://emberstack.github.io/helm-charts
+    chart: reflector
+    targetRevision: 7.1.288
+    helm:
+      releaseName: reflector
+      values: |
+        replicaCount: 1
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: reflector
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

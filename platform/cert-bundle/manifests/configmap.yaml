@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: corporate-ca
+  annotations:
+    # Reflector watches this ConfigMap and copies it (data + binaryData) into
+    # every namespace listed below, plus any future namespace that matches.
+    # Add new namespaces here as the platform grows.
+    reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+    reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "keycloak,data,tekton-pipelines,tekton-triggers,tekton-dashboard,taskboard"
+    reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+    reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "keycloak,data,tekton-pipelines,tekton-triggers,tekton-dashboard,taskboard"
+# .data is intentionally absent. It's loaded by `kubectl patch` (see README)
+# so the cert content never enters the public repo. The cert-bundle Argo
+# Application has ignoreDifferences on /data and /binaryData to preserve it.
