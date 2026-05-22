@@ -16,17 +16,18 @@ data:
     DEMO_USER=demo
     DEMO_PASS=demo
 
-    echo "Waiting for Keycloak at ${SERVER} ..."
-    until curl -fsS "${SERVER}/realms/master" >/dev/null 2>&1; do
-      sleep 5
-    done
-
-    echo "Authenticating as ${KEYCLOAK_ADMIN} ..."
-    "$KCADM" config credentials \
+    # The keycloak image has no curl. Use kcadm itself as the readiness probe:
+    # `config credentials` only succeeds once the master realm is initialized
+    # and accepting auth — exactly when we want to start issuing kcadm commands.
+    echo "Waiting for Keycloak at ${SERVER} (via kcadm auth) ..."
+    until "$KCADM" config credentials \
       --server "${SERVER}" \
       --realm master \
       --user "${KEYCLOAK_ADMIN}" \
-      --password "${KEYCLOAK_ADMIN_PASSWORD}"
+      --password "${KEYCLOAK_ADMIN_PASSWORD}" >/dev/null 2>&1; do
+      sleep 5
+    done
+    echo "Authenticated as ${KEYCLOAK_ADMIN}."
 
     echo "Ensuring realm '${REALM}' ..."
     if ! "$KCADM" get "realms/${REALM}" >/dev/null 2>&1; then
@@ -68,4 +69,11 @@ data:
 
     # Job pods stay Running because the Istio sidecar never exits on its own.
     # Tell pilot-agent on localhost:15020 to shut down so the Pod completes.
-    curl -fsS -X POST http://localhost:15020/quitquitquit >/dev/null 2>&1 || true
+    # The keycloak image has no curl, so use bash's /dev/tcp to speak raw HTTP.
+    {
+      exec 3<>/dev/tcp/127.0.0.1/15020
+      printf 'POST /quitquitquit HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n' >&3
+      cat <&3 >/dev/null
+      exec 3<&-
+      exec 3>&-
+    } 2>/dev/null || true
