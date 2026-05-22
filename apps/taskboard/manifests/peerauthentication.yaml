@@ -1,0 +1,10 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: taskboard
+spec:
+  # Every workload in this namespace must speak mTLS. PERMISSIVE → STRICT
+  # is the zero-trust beat in the demo script.
+  mtls:
+    mode: STRICT

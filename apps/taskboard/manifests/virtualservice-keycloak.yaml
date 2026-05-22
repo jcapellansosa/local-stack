@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: keycloak-external
+  namespace: taskboard
+spec:
+  # Lives in the taskboard ns because the Gateway it binds to is here.
+  # Destination is the Keycloak Service in the keycloak namespace (FQDN).
+  hosts:
+    - keycloak.local
+  gateways:
+    - taskboard-gateway
+  http:
+    - route:
+        - destination:
+            host: keycloak.keycloak.svc.cluster.local
+            port:
+              number: 80

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: taskboard
+  labels:
+    # Istio mutating webhook injects the sidecar into every pod in this ns.
+    istio-injection: enabled

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskboard
+  namespace: taskboard
+  labels:
+    app: taskboard
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: taskboard
+  template:
+    metadata:
+      labels:
+        app: taskboard
+    spec:
+      containers:
+        - name: taskboard
+          # Built into the minikube docker daemon via
+          #   minikube image build -p local-stack -t local-stack/taskboard:dev .
+          # IfNotPresent avoids the kubelet trying to pull from a registry.
+          image: local-stack/taskboard:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: taskboard-env
+          env:
+            # Browser-facing base for OIDC redirects + session cookie scope.
+            - name: PUBLIC_BASE_URL
+              value: http://taskboard.local
+            # Issuer claim users will see in their ID tokens (they authenticate
+            # via the gateway at http://keycloak.local).
+            - name: OIDC_ISSUER
+              value: http://keycloak.local/realms/taskboard
+            - name: OIDC_CLIENT_ID
+              value: taskboard
+            # Demo runs on plain http through the gateway; relax the cookie
+            # Secure flag so the browser actually sends it back.
+            - name: COOKIE_INSECURE
+              value: "true"
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 25m
+              memory: 96Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

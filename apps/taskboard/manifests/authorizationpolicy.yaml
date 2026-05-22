@@ -1,0 +1,18 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: taskboard-allow-ingress
+  namespace: taskboard
+spec:
+  selector:
+    matchLabels:
+      app: taskboard
+  action: ALLOW
+  # Only the istio-ingressgateway SA may talk to the app. Anything else in
+  # the mesh that tries to hit taskboard directly is denied — zero-trust
+  # namespace isolation, independent of the OIDC story above.
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/istio-ingress/sa/istio-ingressgateway

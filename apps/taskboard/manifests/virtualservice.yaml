@@ -1,0 +1,16 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: taskboard
+  namespace: taskboard
+spec:
+  hosts:
+    - taskboard.local
+  gateways:
+    - taskboard-gateway
+  http:
+    - route:
+        - destination:
+            host: taskboard.taskboard.svc.cluster.local
+            port:
+              number: 80

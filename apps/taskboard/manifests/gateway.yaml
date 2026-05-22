@@ -1,0 +1,19 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: taskboard-gateway
+  namespace: taskboard
+spec:
+  # Binds to the chart-installed gateway workload in the istio-ingress ns.
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      # Two hosts: the app itself, and Keycloak (so the browser can complete
+      # the OIDC redirect dance). Cross-ns routing handled in virtualservice-keycloak.yaml.
+      hosts:
+        - taskboard.local
+        - keycloak.local

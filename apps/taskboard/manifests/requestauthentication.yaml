@@ -1,0 +1,18 @@
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: taskboard-jwt
+  namespace: taskboard
+spec:
+  selector:
+    matchLabels:
+      app: taskboard
+  # Non-blocking by itself: if a JWT IS present, Istio validates issuer + sig
+  # against the JWKS below. Browser traffic in this BFF model carries a
+  # session cookie (not a JWT), so this mainly demonstrates the capability for
+  # future service-to-service auth.
+  jwtRules:
+    - issuer: http://keycloak.local/realms/taskboard
+      # istiod fetches the JWKS server-side; cluster-internal URL is fine.
+      jwksUri: http://keycloak.keycloak.svc.cluster.local/realms/taskboard/protocol/openid-connect/certs
+      forwardOriginalToken: true
