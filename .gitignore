@@ -11,10 +11,11 @@ node_modules/
 dist/
 build/
 
-# Go
-*.test
-*.out
-/src/*/bin/
+# Python
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/.pytest_cache/
 
 # Editor / OS
 .vscode/
