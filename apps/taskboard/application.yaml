@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskboard
+  namespace: argocd
+  annotations:
+    # Wave 4 — after all platform components (cert-bundle wave 1, istio
+    # waves 0-2, keycloak wave 2, keycloak-seed wave 3, postgres wave 2,
+    # tekton-config wave 3).
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jcapellansosa/local-stack.git
+    targetRevision: main
+    path: apps/taskboard/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: taskboard
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
