@@ -17,7 +17,10 @@ spec:
       releaseName: istio-ingressgateway
       values: |
         service:
-          type: NodePort
+          # LoadBalancer + `minikube tunnel` gives the gateway a routable IP on
+          # ports 80/443, so demo URLs (http://taskboard.local) don't need a
+          # NodePort suffix. The tunnel must be running on the host.
+          type: LoadBalancer
           ports:
             - name: status-port
               port: 15021
@@ -25,11 +28,9 @@ spec:
             - name: http2
               port: 80
               targetPort: 80
-              nodePort: 30080
             - name: https
               port: 443
               targetPort: 443
-              nodePort: 30443
         replicaCount: 1
         autoscaling:
           enabled: false
