@@ -17,6 +17,15 @@ spec:
       labels:
         app: taskboard
     spec:
+      # Backend talks OIDC to keycloak.local server-side. Resolve it to the
+      # istio-ingressgateway ClusterIP so the request flows out through the
+      # gateway → keycloak VirtualService (same path the browser takes).
+      # ClusterIP is stable for the life of the Service; refresh if the
+      # istio-ingressgateway Service is ever recreated.
+      hostAliases:
+        - ip: 10.100.62.121
+          hostnames:
+            - keycloak.local
       containers:
         - name: taskboard
           # Built into the minikube docker daemon via
